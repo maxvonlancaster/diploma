@@ -200,7 +200,7 @@ messageInput.addEventListener('input', () => {
   messageInput.style.height = Math.min(messageInput.scrollHeight, 180) + 'px';
 });
 
-sendBtn.addEventListener('click', () => { if (!isLoading) sendTestMessage(); });
+sendBtn.addEventListener('click', () => { if (!isLoading) sendMessage(); });
 
 
 async function sendTestMessage() {
@@ -226,27 +226,27 @@ async function sendMessage() {
   let urlToAnalyze = text;
   let isUrl = true;
 
-  try {
-    urlToAnalyze = new URL(text).toString();
-  } catch {
-    const looksLikeHost = /^[^\s]+\.[^\s]+$/.test(text);
-    if (looksLikeHost) {
-      urlToAnalyze = 'https://' + text;
-      try {
-        urlToAnalyze = new URL(urlToAnalyze).toString();
-      } catch {
-        isUrl = false;
-      }
-    } else {
-      isUrl = false;
-    }
-  }
+  // try {
+  //   urlToAnalyze = new URL(text).toString();
+  // } catch {
+  //   const looksLikeHost = /^[^\s]+\.[^\s]+$/.test(text);
+  //   if (looksLikeHost) {
+  //     urlToAnalyze = 'https://' + text;
+  //     try {
+  //       urlToAnalyze = new URL(urlToAnalyze).toString();
+  //     } catch {
+  //       isUrl = false;
+  //     }
+  //   } else {
+  //     isUrl = false;
+  //   }
+  // }
 
-  if (!isUrl) {
-    showChatView();
-    addMessage('assistant', 'Цей endpoint працює тільки з URL веб-сторінок. Введіть адресу типу https://mathmod.chnu.edu.ua/ замість питання.');
-    return;
-  }
+  // if (!isUrl) {
+  //   showChatView();
+  //   addMessage('assistant', 'Цей endpoint працює тільки з URL веб-сторінок. Введіть адресу типу https://mathmod.chnu.edu.ua/ замість питання.');
+  //   return;
+  // }
 
   // Switch to chat view
   showChatView();
@@ -263,7 +263,7 @@ async function sendMessage() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
-        prompt: urlToAnalyze, 
+        prompt: text, 
         context: '', 
         chat_history: chatHistory 
       })
@@ -286,6 +286,8 @@ async function sendMessage() {
       responseText = data.answer;
     } else if (data.response) {
       responseText = data.response;
+    } else if (data.bug_reports) {
+      responseText = renderBugReports(data);
     } else {
       responseText = JSON.stringify(data, null, 2);
     }
@@ -371,10 +373,36 @@ function removeTyping(id) {
 function renderMarkdown(text) {
   return text
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/^### (.+)$/gm, '<strong>$1</strong>')
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.+?)\*/g,     '<em>$1</em>')
     .replace(/`(.+?)`/g,       '<code>$1</code>')
     .replace(/\n/g,             '<br>');
+}
+
+// ================================================
+//  BUG REPORTS — renderer
+// ================================================
+function renderBugReports(data) {
+  let md = `**Summary:** ${data.summary}\n\n`;
+  md += `**Confidence:** ${data.confidence}\n\n`;
+  md += `**Bug Reports:**\n\n`;
+  data.bug_reports.forEach(report => {
+    md += `### ${report.title}\n\n`;
+    md += `${report.description}\n\n`;
+    if (report.steps_to_reproduce && report.steps_to_reproduce.length > 0) {
+      md += `**Steps to reproduce:**\n`;
+      report.steps_to_reproduce.forEach(step => md += `- ${step}\n`);
+      md += '\n';
+    }
+    md += `**Expected result:** ${report.expected_result}\n\n`;
+    md += `**Actual result:** ${report.actual_result}\n\n`;
+    md += `**Severity:** ${report.severity}\n\n`;
+    if (report.additional_context) {
+      md += `**Additional context:** ${report.additional_context}\n\n`;
+    }
+  });
+  return md;
 }
 
 function esc(str) {

@@ -200,7 +200,20 @@ messageInput.addEventListener('input', () => {
   messageInput.style.height = Math.min(messageInput.scrollHeight, 180) + 'px';
 });
 
-sendBtn.addEventListener('click', () => { if (!isLoading) sendMessage(); });
+sendBtn.addEventListener('click', () => { if (!isLoading) sendTestMessage(); });
+
+
+async function sendTestMessage() {
+  const text = messageInput.value.trim();
+  await fetch(`${API}/api/qa`, { 
+      method: 'POST', 
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: text, context: '', chat_history: [] })
+    }).then(res => res.json())
+    .then(data => console.log('Test response:', data))
+    .catch(err => console.error('Test error:', err));
+
+}
 
 // ================================================
 //  CHAT — SEND MESSAGE
